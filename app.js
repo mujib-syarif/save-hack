@@ -1,5 +1,6 @@
-// Set API_BASE to the deployed backend URL. This static frontend alone cannot download media.
-const API_BASE = ""; // Set after the backend is deployed.\nfunction requireBackend(){ if(!API_BASE){ status("Frontend sudah dipasang, tetapi backend download belum dihubungkan."); return false; } return true; }
+// Set API_BASE to the deployed backend URL after the Render service is live.
+const API_BASE = "";
+function requireBackend(){ if(!API_BASE){ status("Frontend sudah dipasang, tetapi backend download belum dihubungkan."); return false; } return true; }
 let format = "mp4", currentUrl = "";
 const $ = s => document.querySelector(s);
 document.querySelectorAll(".format").forEach(b=>b.addEventListener("click",()=>{format=b.dataset.format;document.querySelectorAll(".format").forEach(x=>x.classList.toggle("active",x===b))}));
