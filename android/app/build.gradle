@@ -1,0 +1,12 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'id.mujib.monorecdownloader'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'id.mujib.monorecdownloader'
+        minSdk 23
+        targetSdk 28
+        versionCode 1
+        versionName '1.0'
+    }
+}
