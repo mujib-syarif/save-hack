@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: save-hack-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: MAX_DOWNLOAD_MB
+        value: "300"
+      - key: MAX_CONCURRENT_JOBS
+        value: "1"
