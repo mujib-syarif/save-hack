@@ -1,0 +1,23 @@
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DOWNLOAD_DIR: /tmp/downloads
+      MAX_DOWNLOAD_MB: "300"
+      MAX_CONCURRENT_JOBS: "1"
+    volumes:
+      - download_tmp:/tmp/downloads
+    restart: unless-stopped
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/usr/share/nginx/html:ro
+    depends_on:
+      - api
+    restart: unless-stopped
+volumes:
+  download_tmp:
