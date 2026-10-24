@@ -14,16 +14,16 @@ docker compose up --build
 - API health: http://localhost:8000/health
 - API docs: http://localhost:8000/docs
 
-The frontend uses \`http://localhost:8000\` when opened on localhost. The hosted frontend defaults to \`https://save-hack-api.onrender.com\`. If your Render service uses another URL, open the site with \`?api=https%3A%2F%2FYOUR-API-HOST\` or set \`window.SAVE_HACK_API_BASE\` before loading \`app.js\`.
+The frontend uses `http://localhost:8000` when opened on localhost. The hosted frontend defaults to `https://save-hack-api.onrender.com`. If your Render service uses another URL, open the site with `?api=https%3A%2F%2FYOUR-API-HOST` or set `window.SAVE_HACK_API_BASE` before loading `app.js`.
 
 ## Architecture
 
 - Static frontend at repository root, deployed with GitHub Pages.
-- FastAPI backend in \`backend/\`.
+- FastAPI backend in `backend/`.
 - yt-dlp for supported source extractors.
 - FFmpeg for audio extraction and video/audio merging.
 - Asynchronous in-process download jobs with progress polling.
-- Docker Compose for local development; Render Blueprint at \`render.yaml\`.
+- Docker Compose for local development; Render Blueprint at `render.yaml`.
 
 ## Download flow
 
@@ -38,7 +38,7 @@ MP3 uses the best available audio stream and FFmpeg conversion. The available fo
 
 ## Security and operational limits
 
-- CORS is configured through \`CORS_ORIGINS\`; the Render Blueprint lists the GitHub Pages origin and local development origins.
+- CORS is configured through `CORS_ORIGINS`; the Render Blueprint lists the GitHub Pages origin and local development origins.
 - URL validation requires HTTPS, rejects credentials, non-standard ports, IP literals, unsupported hosts, and DNS results that are not globally routable.
 - Basic process-local rate limits and concurrent-job limits reduce accidental overload.
 - Job state is in process memory. A service restart loses in-flight jobs, so this is an MVP, not a durable queue.
@@ -63,4 +63,4 @@ GitHub Actions runs the backend tests on pushes and pull requests that touch bac
 
 Host the static frontend on GitHub Pages or Cloudflare Pages. Run the Python/FFmpeg backend on a container host or VPS that permits media processing. Cloudflare Workers are suitable for lightweight API/orchestration but not long-running yt-dlp/FFmpeg jobs. Free hosting tiers may sleep, impose quotas, or disallow sustained workloads; check current provider terms.
 
-The Render service domain is expected to be \`https://save-hack-api.onrender.com\` by default. Verify that the service exists and is healthy before expecting the public frontend to download media.
+The Render service domain is expected to be `https://save-hack-api.onrender.com` by default. Verify that the service exists and is healthy before expecting the public frontend to download media.
