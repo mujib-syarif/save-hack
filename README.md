@@ -6,9 +6,9 @@ Mobile-first media downloader with a static HTML/CSS/JS frontend and a FastAPI +
 
 Requirements: Docker Desktop and Docker Compose.
 
-\`\`\`bash
+```bash
 docker compose up --build
-\`\`\`
+```
 
 - Website: http://localhost:8080
 - API health: http://localhost:8000/health
@@ -52,10 +52,10 @@ MP3 uses the best available audio stream and FFmpeg conversion. The available fo
 
 Install backend dependencies and test tools, then run:
 
-\`\`\`bash
+```bash
 pip install -r backend/requirements.txt pytest httpx
 pytest -q backend/tests
-\`\`\`
+```
 
 GitHub Actions runs the backend tests on pushes and pull requests that touch backend code or its test workflow.
 
