@@ -43,8 +43,8 @@ public class MainActivity extends Activity {
     String quoted="'"+u.replace("'","'\\''")+"'";
     String out="$HOME/storage/shared/Download/%(title).150B [%(id)s].%(ext)s";
     String task;
-    if(format.getSelectedItemPosition()==1) task="yt-dlp --no-playlist -f 'ba/b' --extract-audio --audio-format mp3 -o \\""+out+"\\" "+quoted;
-    else task="yt-dlp --no-playlist -f 'bv*[height<="+q+"]+ba/b[height<="+q+"]/b' --merge-output-format mp4 -o \\""+out+"\\" "+quoted;
+    if(format.getSelectedItemPosition()==1) task="yt-dlp --no-playlist -f 'ba/b' --extract-audio --audio-format mp3 -o \""+out+"\" "+quoted;
+    else task="yt-dlp --no-playlist -f 'bv*[height<="+q+"]+ba/b[height<="+q+"]/b' --merge-output-format mp4 -o \""+out+"\" "+quoted;
     String cmd="termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download dimulai' >/dev/null 2>&1; "+task+"; rc=$?; if [ $rc -eq 0 ]; then termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download selesai. Cek folder Download.' >/dev/null 2>&1; else termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download gagal. Periksa Termux.' >/dev/null 2>&1; fi; exit $rc;";
     Intent i=new Intent("com.termux.RUN_COMMAND");i.setClassName("com.termux","com.termux.app.RunCommandService");
     i.putExtra("com.termux.RUN_COMMAND_PATH","/data/data/com.termux/files/usr/bin/bash");i.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",new String[]{"-lc",cmd});i.putExtra("com.termux.RUN_COMMAND_WORKDIR","/data/data/com.termux/files/home");i.putExtra("com.termux.RUN_COMMAND_BACKGROUND",true);
