@@ -82,3 +82,34 @@ def test_download_rejects_unknown_quality_before_scheduling():
             "rights_confirmed": True,
         })
     assert response.status_code == 422
+
+
+def test_cancel_endpoint_marks_active_job(monkeypatch):
+    job_id = "cancel-test-job"
+    main.JOBS[job_id] = {
+        "job_id": job_id,
+        "status": "downloading",
+        "progress": 20,
+        "downloaded_bytes": 10,
+        "total_bytes": 50,
+        "path": None,
+        "filename": None,
+        "error": None,
+        "cancel_requested": False,
+        "created_at": 1,
+        "updated_at": 1,
+    }
+    try:
+        with TestClient(main.app) as client:
+            response = client.post(f"/jobs/{job_id}/cancel")
+        assert response.status_code == 200
+        assert response.json()["status"] == "cancelling"
+        assert main.JOBS[job_id]["cancel_requested"] is True
+    finally:
+        main.JOBS.pop(job_id, None)
+
+
+def test_cancel_endpoint_returns_404_for_unknown_job():
+    with TestClient(main.app) as client:
+        response = client.post("/jobs/no-such-job/cancel")
+    assert response.status_code == 404
