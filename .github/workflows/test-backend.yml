@@ -4,10 +4,16 @@ on:
   push:
     paths:
       - "backend/**"
+      - "app.js"
+      - "index.html"
+      - "styles.css"
       - ".github/workflows/test-backend.yml"
   pull_request:
     paths:
       - "backend/**"
+      - "app.js"
+      - "index.html"
+      - "styles.css"
       - ".github/workflows/test-backend.yml"
   workflow_dispatch:
 
