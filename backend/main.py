@@ -125,10 +125,10 @@ def validate_url(raw: str) -> str:
         # Reject IP literals, including public IPs, to reduce alternate access paths.
         try:
             ipaddress.ip_address(host)
+        except ValueError:
+            pass
+        else:
             raise ValueError("IP literals are not supported")
-        except ValueError as error:
-            if str(error) == "IP literals are not supported":
-                raise
         direct_file = Path(parsed.path.lower()).suffix in DIRECT_EXTENSIONS
         if not _is_supported_host(host) and not direct_file:
             raise ValueError("unsupported host")
