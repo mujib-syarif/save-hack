@@ -28,7 +28,7 @@ input[type=url]{min-width:0;flex:1;background:transparent;border:0;outline:0;col
 .formats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .format{display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:#17191f;color:white;border-radius:12px;padding:13px;cursor:pointer;text-align:left}
 .format.active{border-color:#e6e7eb;background:#252830}
-.format b,.format small{display:block;text-align:left}
+.format-code{display:inline-grid;place-items:center;min-width:32px;height:30px;padding:0 5px;border:1px solid #42454e;border-radius:7px;font-size:9px;font-weight:800;letter-spacing:.5px}.format b,.format small{display:block;text-align:left}
 .format b{font-size:12px}
 .format small{font-size:10px;color:var(--muted);margin-top:3px}
 .quality-field{margin-top:18px}
