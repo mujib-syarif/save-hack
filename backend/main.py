@@ -197,11 +197,11 @@ def make_ytdlp_options(job_id: str, fmt: str, quality: str) -> dict:
         return options
 
     if quality == "best":
-        selector = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/best"
+        selector = "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]"
     else:
         selector = (
             f"bv*[height<={quality}][ext=mp4]+ba[ext=m4a]"
-            f"/b[height<={quality}][ext=mp4]/b[height<={quality}]"
+            f"/b[height<={quality}][ext=mp4]"
         )
     options.update({"format": selector, "merge_output_format": "mp4"})
     return options
