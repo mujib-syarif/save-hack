@@ -25,7 +25,7 @@ public class MainActivity extends Activity {
     super.onCreate(b);getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
     LinearLayout page=new LinearLayout(this);page.setOrientation(1);page.setPadding(dp(22),dp(28),dp(22),dp(20));page.setBackgroundColor(bg);
     ScrollView sc=new ScrollView(this);LinearLayout c=new LinearLayout(this);c.setOrientation(1);sc.addView(c);page.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
-    TextView title=text("↓   Downloader",22,white,true);c.addView(title);TextView sub=text("MONOREC / PERSONAL MEDIA TOOL",10,muted,false);c.addView(sub);gap(c,30);
+    TextView title=text("MonoRec Downloader",22,white,true);c.addView(title);TextView sub=text("MONOREC / PERSONAL MEDIA TOOL",10,muted,false);c.addView(sub);gap(c,30);
     label(c,"VIDEO URL");url=new EditText(this);url.setHint("Tempel tautan video di sini");url.setHintTextColor(0xff727477);url.setTextColor(white);url.setTextSize(14);url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setPadding(dp(14),dp(12),dp(14),dp(12));url.setBackground(shape(panel));c.addView(url,lp(-1,90));gap(c,20);
     label(c,"FORMAT");format=spin(new String[]{"Video MP4","Audio MP3"});c.addView(format,lp(-1,52));gap(c,18);
     label(c,"KUALITAS VIDEO");quality=spin(new String[]{"480p SD","720p HD","1080p FHD","1440p QHD","2160p 4K"});c.addView(quality,lp(-1,52));quality.setSelection(2);gap(c,20);
