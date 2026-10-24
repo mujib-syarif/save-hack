@@ -7,7 +7,7 @@
     : "https://save-hack-api.onrender.com";
   const API_BASE = String(window.SAVE_HACK_API_BASE || params.get("api") || defaultApi).replace(/\/+$/, "");
   const $ = (selector) => document.querySelector(selector);
-  const state = { format: "mp4", currentUrl: "", analyzing: false, downloading: false, availableHeights: [] };
+  const state = { format: "mp4", currentUrl: "", currentJobId: null, analyzing: false, downloading: false, availableHeights: [] };
 
   function status(message, kind = "") {
     const el = $("#status");
@@ -176,7 +176,7 @@
         failed: "Unduhan gagal"
       };
       setProgress(labels[job.status] || "Memproses media", progress === null ? 0 : progress, bytes, progress === null);
-      if (job.status === "failed") throw new Error(job.error || "Unduhan gagal. Coba lagi dengan tautan lain.");
+      if (job.status === "failed" || job.status === "cancelled") throw new Error(job.error || "Unduhan dibatalkan.");
       if (job.status === "completed" && job.file_ready) return job;
       await new Promise((resolve) => window.setTimeout(resolve, 1000));
     }
@@ -202,6 +202,9 @@
       });
       const started = await readResponse(response);
       if (!started.job_id) throw new Error("Server tidak mengembalikan ID unduhan yang valid.");
+      state.currentJobId = started.job_id;
+      $("#cancelDownload").hidden = false;
+      $("#cancelDownload").disabled = false;
       await pollJob(started.job_id);
       const link = document.createElement("a");
       link.href = API_BASE + "/jobs/" + encodeURIComponent(started.job_id) + "/file";
@@ -220,7 +223,27 @@
       $("#progressTrack").classList.remove("indeterminate");
     } finally {
       state.downloading = false;
+      state.currentJobId = null;
+      $("#cancelDownload").hidden = true;
+      $("#cancelDownload").disabled = false;
       setBusy(false);
+    }
+  });
+
+  $("#cancelDownload").addEventListener("click", async () => {
+    if (!state.currentJobId || !state.downloading) return;
+    const button = $("#cancelDownload");
+    button.disabled = true;
+    status("Mengirim permintaan pembatalan...", "");
+    try {
+      const response = await apiFetch("/jobs/" + encodeURIComponent(state.currentJobId) + "/cancel", {
+        method: "POST"
+      });
+      const data = await readResponse(response);
+      status(data.status === "cancelling" ? "Pembatalan diminta. Menunggu proses berhenti dengan aman..." : "Status unduhan: " + data.status, "");
+    } catch (error) {
+      status(error.message || "Permintaan pembatalan gagal.", "error");
+      button.disabled = false;
     }
   });
 
