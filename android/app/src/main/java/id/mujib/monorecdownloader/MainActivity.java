@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
     TextView title=text("↓   Downloader",22,white,true);c.addView(title);TextView sub=text("MONOREC / PERSONAL MEDIA TOOL",10,muted,false);c.addView(sub);gap(c,30);
     label(c,"VIDEO URL");url=new EditText(this);url.setHint("Tempel tautan video di sini");url.setHintTextColor(0xff727477);url.setTextColor(white);url.setTextSize(14);url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setPadding(dp(14),dp(12),dp(14),dp(12));url.setBackground(shape(panel));c.addView(url,lp(-1,90));gap(c,20);
     label(c,"FORMAT");format=spin(new String[]{"Video MP4","Audio MP3"});c.addView(format,lp(-1,52));gap(c,18);
-    label(c,"KUALITAS VIDEO");quality=spin(new String[]{"480p SD","720p HD","1080p FHD","1440p QHD","2160p 4K"});c.addView(quality,lp(-1,52));gap(c,20);
+    label(c,"KUALITAS VIDEO");quality=spin(new String[]{"480p SD","720p HD","1080p FHD","1440p QHD","2160p 4K"});c.addView(quality,lp(-1,52));quality.setSelection(2);gap(c,20);
     TextView note=text("File disimpan ke folder Download. Proses berjalan lewat Termux.",12,muted,false);note.setPadding(dp(12),dp(12),dp(12),dp(12));note.setBackground(shape(panel));c.addView(note,lp(-1,-2));gap(c,22);
     Button go=new Button(this);go.setText("MULAI DOWNLOAD");go.setTextColor(bg);go.setTypeface(Typeface.DEFAULT,Typeface.BOLD);go.setBackgroundColor(white);c.addView(go,lp(-1,54));status=text("READY  /  Menunggu tautan",12,muted,false);status.setPadding(0,dp(17),0,0);c.addView(status);
     TextView foot=text("MONOREC  •  LOCAL DOWNLOAD ENGINE",10,0xff5a5c5f,false);foot.setGravity(Gravity.CENTER);page.addView(foot,lp(-1,30));setContentView(page);
