@@ -240,6 +240,17 @@ def update_postprocessing(job_id: str, _data: dict) -> None:
 
 def run_download(job_id: str, url: str, fmt: str, quality: str) -> None:
     try:
+        with JOBS_LOCK:
+            current_job = JOBS.get(job_id)
+            cancelled_before_start = bool(current_job and current_job.get("cancel_requested"))
+            if cancelled_before_start and current_job:
+                current_job.update({
+                    "status": "cancelled",
+                    "error": "Unduhan dibatalkan.",
+                    "updated_at": time.time(),
+                })
+        if cancelled_before_start:
+            return
         with yt_dlp.YoutubeDL(make_ytdlp_options(job_id, fmt, quality)) as downloader:
             downloader.download([url])
         found = [
