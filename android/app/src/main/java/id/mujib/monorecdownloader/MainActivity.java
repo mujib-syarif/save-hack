@@ -25,10 +25,10 @@ public class MainActivity extends Activity {
     super.onCreate(b);getWindow().setStatusBarColor(bg);getWindow().setNavigationBarColor(bg);
     LinearLayout page=new LinearLayout(this);page.setOrientation(1);page.setPadding(dp(22),dp(28),dp(22),dp(20));page.setBackgroundColor(bg);
     ScrollView sc=new ScrollView(this);LinearLayout c=new LinearLayout(this);c.setOrientation(1);sc.addView(c);page.addView(sc,new LinearLayout.LayoutParams(-1,0,1));
-    TextView title=text("↓   Downloader",22,white,true);c.addView(title);TextView sub=text("MONOREC / PERSONAL MEDIA TOOL",10,muted,false);c.addView(sub);gap(c,30);
+    TextView title=text("MonoRec Downloader",22,white,true);c.addView(title);TextView sub=text("MONOREC / PERSONAL MEDIA TOOL",10,muted,false);c.addView(sub);gap(c,30);
     label(c,"VIDEO URL");url=new EditText(this);url.setHint("Tempel tautan video di sini");url.setHintTextColor(0xff727477);url.setTextColor(white);url.setTextSize(14);url.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_URI);url.setPadding(dp(14),dp(12),dp(14),dp(12));url.setBackground(shape(panel));c.addView(url,lp(-1,90));gap(c,20);
     label(c,"FORMAT");format=spin(new String[]{"Video MP4","Audio MP3"});c.addView(format,lp(-1,52));gap(c,18);
-    label(c,"KUALITAS VIDEO");quality=spin(new String[]{"1080p FHD","1440p QHD","2160p 4K","720p HD","480p"});c.addView(quality,lp(-1,52));gap(c,20);
+    label(c,"KUALITAS VIDEO");quality=spin(new String[]{"480p SD","720p HD","1080p FHD","1440p QHD","2160p 4K"});c.addView(quality,lp(-1,52));quality.setSelection(2);gap(c,20);
     TextView note=text("File disimpan ke folder Download. Proses berjalan lewat Termux.",12,muted,false);note.setPadding(dp(12),dp(12),dp(12),dp(12));note.setBackground(shape(panel));c.addView(note,lp(-1,-2));gap(c,22);
     Button go=new Button(this);go.setText("MULAI DOWNLOAD");go.setTextColor(bg);go.setTypeface(Typeface.DEFAULT,Typeface.BOLD);go.setBackgroundColor(white);c.addView(go,lp(-1,54));status=text("READY  /  Menunggu tautan",12,muted,false);status.setPadding(0,dp(17),0,0);c.addView(status);
     TextView foot=text("MONOREC  •  LOCAL DOWNLOAD ENGINE",10,0xff5a5c5f,false);foot.setGravity(Gravity.CENTER);page.addView(foot,lp(-1,30));setContentView(page);
@@ -37,18 +37,24 @@ public class MainActivity extends Activity {
   }
   void download(){
     String u=url.getText().toString().trim();
-    if(!(u.startsWith("https://")||u.startsWith("http://"))){url.setError("Masukkan URL yang valid");return;}
-    String[] heights={"1080","1440","2160","720","480"};
+    if(!u.startsWith("https://")){url.setError("Gunakan tautan HTTPS yang valid");return;}
+    String[] heights={"480","720","1080","1440","2160"};
     String q=heights[quality.getSelectedItemPosition()];
     String quoted="'"+u.replace("'","'\\''")+"'";
     String out="$HOME/storage/shared/Download/%(title).150B [%(id)s].%(ext)s";
+    String progressArgs="--newline --no-colors --progress-template 'download:%(progress._percent_str)s' ";
     String task;
-    if(format.getSelectedItemPosition()==1) task="yt-dlp --no-playlist -f 'ba/b' --extract-audio --audio-format mp3 -o \""+out+"\" "+quoted;
-    else task="yt-dlp --no-playlist -f 'bv*[height<="+q+"]+ba/b[height<="+q+"]/b' --merge-output-format mp4 -o \""+out+"\" "+quoted;
-    String cmd="termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download dimulai' >/dev/null 2>&1; "+task+"; rc=$?; if [ $rc -eq 0 ]; then termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download selesai. Cek folder Download.' >/dev/null 2>&1; else termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download gagal. Periksa Termux.' >/dev/null 2>&1; fi; exit $rc;";
+    if(format.getSelectedItemPosition()==1) {
+      task="yt-dlp "+progressArgs+"--no-playlist -f 'ba/b' --extract-audio --audio-format mp3 -o \""+out+"\" "+quoted;
+    } else {
+      task="yt-dlp "+progressArgs+"--no-playlist -f 'bv*[height<="+q+"][ext=mp4]+ba[ext=m4a]/b[height<="+q+"][ext=mp4]' --merge-output-format mp4 -o \""+out+"\" "+quoted;
+    }
+    String cmd="termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download dimulai' --ongoing --progress-max 100 --progress 0 --alert-once >/dev/null 2>&1; "+
+      task+" 2>&1 | while IFS= read -r line; do case \"$line\" in download:*) pct=$(printf '%s' \"$line\" | sed -n 's/.*download:[[:space:]]*\\([0-9][0-9]*\\).*/\\1/p'); case \"$pct\" in ''|*[!0-9]*) ;; *) termux-notification --id 741 --title 'MonoRec Downloader' --content \"Mengunduh media: ${pct}%\" --ongoing --progress-max 100 --progress \"$pct\" --alert-once >/dev/null 2>&1 ;; esac ;; esac; done; rc=${PIPESTATUS[0]}; "+
+      "if [ \"$rc\" -eq 0 ]; then termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download selesai. Cek folder Download.' --progress-max 100 --progress 100 --alert-once >/dev/null 2>&1; else termux-notification --id 741 --title 'MonoRec Downloader' --content 'Download gagal. Periksa Termux.' --alert-once >/dev/null 2>&1; fi; exit \"$rc\";";
     Intent i=new Intent("com.termux.RUN_COMMAND");i.setClassName("com.termux","com.termux.app.RunCommandService");
     i.putExtra("com.termux.RUN_COMMAND_PATH","/data/data/com.termux/files/usr/bin/bash");i.putExtra("com.termux.RUN_COMMAND_ARGUMENTS",new String[]{"-lc",cmd});i.putExtra("com.termux.RUN_COMMAND_WORKDIR","/data/data/com.termux/files/home");i.putExtra("com.termux.RUN_COMMAND_BACKGROUND",true);
-    try{startService(i);status.setText("SENT  /  Perintah dikirim ke Termux");Toast.makeText(this,"Download dikirim. Notifikasi mulai/selesai memakai Termux:API.",Toast.LENGTH_LONG).show();}
+    try{startService(i);status.setText("SENT  /  Perintah dikirim ke Termux");Toast.makeText(this,"Download dikirim. Notifikasi akan menampilkan progres jika sumber menyediakan data progres.",Toast.LENGTH_LONG).show();}
     catch(Exception e){new android.app.AlertDialog.Builder(this).setTitle("Aktifkan integrasi Termux").setMessage("Di Termux jalankan: mkdir -p ~/.termux && echo 'allow-external-apps = true' >> ~/.termux/termux.properties && termux-reload-settings").setPositiveButton("OK",null).show();}
   }
 }

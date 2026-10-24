@@ -1,8 +1,9 @@
 # Save Hack / Mujib Downloader
 
-Mobile-first media downloader MVP with a static HTML/CSS/JS frontend and a separate FastAPI + yt-dlp + FFmpeg backend.
+Mobile-first media downloader with a static HTML/CSS/JS frontend and a FastAPI + yt-dlp + FFmpeg backend.
 
 ## Run locally
+
 Requirements: Docker Desktop and Docker Compose.
 
 ```bash
@@ -13,31 +14,53 @@ docker compose up --build
 - API health: http://localhost:8000/health
 - API docs: http://localhost:8000/docs
 
+The frontend uses `http://localhost:8000` when opened on localhost. The hosted frontend defaults to `https://save-hack-api.onrender.com`. If your Render service uses another URL, open the site with `?api=https%3A%2F%2FYOUR-API-HOST` or set `window.SAVE_HACK_API_BASE` before loading `app.js`.
+
 ## Architecture
-- Static frontend at repository root.
+
+- Static frontend at repository root, deployed with GitHub Pages.
 - FastAPI backend in `backend/`.
 - yt-dlp for supported source extractors.
-- FFmpeg for audio extraction/conversion and media processing.
-- Docker Compose for local development.
+- FFmpeg for audio extraction and video/audio merging.
+- Asynchronous in-process download jobs with progress polling.
+- Docker Compose for local development; Render Blueprint at `render.yaml`.
 
-The frontend defaults to `http://localhost:8000` in `app.js`. When deploying the frontend and API separately, change `API_BASE` to the deployed API origin and configure CORS to allow only the frontend's origin.
+## Download flow
 
-## Scope and limitations
-- MP4/MP3 options depend on what the source provides; not every URL or resolution will work.
-- Platform extractor support can change. YouTube, TikTok, Instagram and other sources are not guaranteed to work for every URL.
-- Use only media you own, have permission to download, or are legally entitled to save.
-- Do not use this service to bypass DRM, paywalls, private-account restrictions, or other access controls.
-- This MVP has no persistent queue, authentication, distributed rate limiter, or hardened public abuse protection. Do not expose it to the public before those are implemented and tested.
-- Initial app limit: 300 MB per file and one concurrent job. These are application settings, not hosting-provider quotas.
-- The URL validation is a basic first layer, not a complete SSRF defense. Public deployment requires network-level egress controls and security review.
+1. The user confirms they have the right to save the media.
+2. The API analyzes a supported public HTTPS URL.
+3. MP4 users can select best available, 480p, 720p, 1080p, 1440p QHD, or 2160p 4K.
+4. The API selects a compatible format at or below the requested height when possible. It does not upscale a lower-resolution source.
+5. The frontend polls job status and shows extraction progress, supports cancellation, then starts a browser download when the file is ready.
+6. Temporary output is deleted after download or job expiry.
 
-## Low-cost hosting plan
-Host the static frontend on Cloudflare Pages or GitHub Pages. Run the Python/FFmpeg backend on a container host or VPS that permits media processing. Cloudflare Workers are suitable for lightweight API/orchestration but are not the runtime for a long-running yt-dlp/FFmpeg process. Free backend tiers may sleep, impose quotas, or disallow sustained workloads; check current provider terms.
+MP3 uses the best available audio stream and FFmpeg conversion. The available formats and resolutions depend on the source and can change.
 
-## Before public launch
-1. Replace wildcard CORS with the exact frontend origin.
-2. Add a persistent queue, per-IP/user rate limits, quotas, job timeout and concurrency limits.
-3. Add network-level SSRF protection and restrict outbound destinations.
-4. Add temporary-storage lifecycle and verify files are deleted after completed downloads.
-5. Add abuse reporting, privacy notice, terms of use, copyright/takedown handling and monitoring.
-6. Review current platform terms and applicable law before enabling each source publicly.
+## Security and operational limits
+
+- CORS is configured through `CORS_ORIGINS`; the Render Blueprint lists the GitHub Pages origin and local development origins.
+- URL validation requires HTTPS, rejects credentials, non-standard ports, IP literals, unsupported hosts, and DNS results that are not globally routable.
+- Basic process-local rate limits and concurrent-job limits reduce accidental overload.
+- Job state is in process memory. A service restart loses in-flight jobs, so this is an MVP, not a durable queue.
+- URL validation is only a first layer against SSRF. Redirects, DNS rebinding, and extractor-specific network behavior mean public deployment still needs network-level outbound filtering, request timeouts, monitoring, and a security review.
+- Rate limiting is process-local, not distributed. A public production deployment should use a shared limiter, user quotas, and stronger abuse protection.
+- Temporary jobs expire after 30 minutes by default. Output files are deleted after the file response is completed.
+- The default limit is 300 MB per file and one concurrent download job. Hosting quotas and timeouts are separate constraints.
+- Do not use this service to bypass DRM, paywalls, private-account restrictions, or other access controls. Use only media you own, have permission to download, or are legally entitled to save.
+
+## Tests
+
+Install backend dependencies and test tools, then run:
+
+```bash
+pip install -r backend/requirements.txt pytest httpx
+pytest -q backend/tests
+```
+
+GitHub Actions runs the backend tests on pushes and pull requests that touch backend code or its test workflow.
+
+## Hosting notes
+
+Host the static frontend on GitHub Pages or Cloudflare Pages. Run the Python/FFmpeg backend on a container host or VPS that permits media processing. Cloudflare Workers are suitable for lightweight API/orchestration but not long-running yt-dlp/FFmpeg jobs. Free hosting tiers may sleep, impose quotas, or disallow sustained workloads; check current provider terms.
+
+The Render service domain is expected to be `https://save-hack-api.onrender.com` by default. Verify that the service exists and is healthy before expecting the public frontend to download media.
