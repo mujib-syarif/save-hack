@@ -214,6 +214,8 @@ def update_progress(job_id: str, data: dict) -> None:
         job = JOBS.get(job_id)
         if not job:
             return
+        if job.get("cancel_requested"):
+            raise yt_dlp.utils.DownloadCancelled("Download cancelled by user")
         job["updated_at"] = now
         if state == "downloading":
             job["status"] = "downloading"
@@ -247,6 +249,21 @@ def run_download(job_id: str, url: str, fmt: str, quality: str) -> None:
         if not found:
             raise RuntimeError("The media engine did not produce an output file.")
         path = max(found, key=lambda item: item.stat().st_mtime)
+        with JOBS_LOCK:
+            current_job = JOBS.get(job_id)
+            cancelled = bool(current_job and current_job.get("cancel_requested"))
+        if cancelled:
+            for item in OUT.glob(job_id + ".*"):
+                cleanup(item)
+            with JOBS_LOCK:
+                current_job = JOBS.get(job_id)
+                if current_job:
+                    current_job.update({
+                        "status": "cancelled",
+                        "error": "Unduhan dibatalkan.",
+                        "updated_at": time.time(),
+                    })
+            return
         size = path.stat().st_size
         if size <= 0:
             cleanup(path)
@@ -273,10 +290,11 @@ def run_download(job_id: str, url: str, fmt: str, quality: str) -> None:
         with JOBS_LOCK:
             job = JOBS.get(job_id)
             if job:
+                cancelled = bool(job.get("cancel_requested"))
                 job.update({
-                    "status": "failed",
+                    "status": "cancelled" if cancelled else "failed",
                     "progress": None,
-                    "error": "Download gagal. Sumber mungkin tidak mendukung format ini atau proses dibatasi. Coba tautan lain.",
+                    "error": "Unduhan dibatalkan." if cancelled else "Download gagal. Sumber mungkin tidak mendukung format ini atau proses dibatasi. Coba tautan lain.",
                     "updated_at": time.time(),
                 })
     finally:
@@ -376,6 +394,7 @@ def download(req: DownloadRequest, request: Request):
         "path": None,
         "filename": None,
         "error": None,
+        "cancel_requested": False,
         "created_at": time.time(),
         "updated_at": time.time(),
     }
@@ -400,6 +419,22 @@ def get_job(job_id: str):
         if not job:
             raise HTTPException(404, "Job tidak ditemukan atau sudah kedaluwarsa.")
         return job_snapshot(job)
+
+
+@app.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            raise HTTPException(404, "Job tidak ditemukan atau sudah kedaluwarsa.")
+        if job["status"] in {"completed", "failed", "cancelled"}:
+            if job["status"] == "completed":
+                raise HTTPException(409, "File sudah siap. Unduh file atau tunggu hingga kedaluwarsa.")
+            return {"job_id": job_id, "status": job["status"]}
+        job["cancel_requested"] = True
+        job["status"] = "cancelling"
+        job["updated_at"] = time.time()
+    return {"job_id": job_id, "status": "cancelling"}
 
 
 @app.get("/jobs/{job_id}/file")
