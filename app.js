@@ -172,6 +172,8 @@
         queued: "Menunggu antrean",
         downloading: "Mengunduh media dari sumber",
         finalizing: "Menyatukan dan menyiapkan file",
+        cancelling: "Membatalkan unduhan",
+        cancelled: "Unduhan dibatalkan",
         completed: "File siap diunduh",
         failed: "Unduhan gagal"
       };
