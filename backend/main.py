@@ -163,7 +163,7 @@ def cleanup_expired_jobs() -> None:
     expired: list[tuple[str, Path | None]] = []
     with JOBS_LOCK:
         for job_id, job in list(JOBS.items()):
-            if job["status"] in {"completed", "failed"} and job["updated_at"] < cutoff:
+            if job["status"] in {"completed", "failed", "cancelled"} and job["updated_at"] < cutoff:
                 expired.append((job_id, job.get("path")))
                 del JOBS[job_id]
     for _, path in expired:
