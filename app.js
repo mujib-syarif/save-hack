@@ -143,8 +143,10 @@
         formatDuration(data.duration) + " · " + (data.extractor || "Media");
       const maxHeight = Number(data.max_height);
       $("#sourceQuality").textContent = Number.isFinite(maxHeight) && maxHeight > 0
-        ? "Resolusi video tertinggi yang terdeteksi: " + maxHeight + "p. Pilihan di atas batas ini akan turun ke kualitas terdekat yang tersedia."
-        : "Resolusi sumber tidak dapat dipastikan sebelum proses unduhan.";
+        ? "Resolusi MP4 tertinggi yang terdeteksi: " + maxHeight + "p. Pilihan di atas batas ini akan turun ke kualitas terdekat yang tersedia."
+        : data.mp4_available === false
+          ? "Stream video MP4 kompatibel tidak terdeteksi. Unduhan MP4 mungkin tidak tersedia untuk tautan ini."
+          : "Resolusi sumber tidak dapat dipastikan sebelum proses unduhan.";
       $("#result").hidden = false;
       status("Analisis selesai. Pilih kualitas video, lalu mulai unduhan.", "success");
     } catch (error) {
