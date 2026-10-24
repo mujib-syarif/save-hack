@@ -1,3 +1,87 @@
 <!doctype html>
-<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101115"><meta name="description" content="Unduh media yang kamu miliki atau berhak simpan."><title>Save Hack | Mujib Downloader</title><link rel="stylesheet" href="styles.css"></head>
-<body><header><a class="brand" href="/"><span class="logo">↓</span><span><b>Save Hack</b><small>MEDIA TOOLS</small></span></a><span class="beta">BETA</span></header><main><section class="hero"><p class="eyebrow">SIMPLE. CLEAN. USEFUL.</p><h1>Media kamu.<br><span>Format pilihanmu.</span></h1><p class="intro">Tempel tautan media yang kamu miliki atau berhak unduh. Pilih format yang tersedia.</p><section class="panel"><label for="url">TAUTAN VIDEO ATAU AUDIO</label><div class="urlrow"><span>↗</span><input id="url" type="url" placeholder="https://..." autocomplete="url"><button id="paste" type="button">Tempel</button></div><div class="formats"><button class="format active" data-format="mp4" type="button">▶ <span><b>MP4</b><small>Video</small></span></button><button class="format" data-format="mp3" type="button">♫ <span><b>MP3</b><small>Audio</small></span></button></div><label class="rights"><input id="rights" type="checkbox"><span>Saya memiliki hak atau izin untuk mengunduh media ini dan akan mematuhi aturan sumber serta hukum yang berlaku.</span></label><button id="analyze" class="primary" type="button">Analisis media <span>↗</span></button><p class="hint">Tidak mendukung akses ke akun privat, DRM, atau pembatasan akses.</p></section><div id="status" class="status" hidden></div><section id="result" class="panel" hidden><p class="eyebrow">MEDIA DITEMUKAN</p><h2 id="title"></h2><p id="details"></p><button id="download" class="primary" type="button">Unduh file <span>↓</span></button></section></section><section class="sources"><p class="eyebrow">SUMBER YANG MUNGKIN DIDUKUNG</p><div class="chips"><span>YouTube</span><span>TikTok</span><span>Instagram</span><span>Direct URL</span></div><p class="hint">Dukungan bergantung pada sumber dan dapat berubah. Gunakan hanya media yang berhak kamu simpan.</p></section><footer>Unduh secara bertanggung jawab. Hormati hak cipta, privasi, dan ketentuan platform.</footer></main><script src="app.js"></script></body></html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101115">
+  <meta name="description" content="Unduh media yang kamu miliki atau berhak simpan. Pilih MP4, MP3, dan kualitas video yang tersedia.">
+  <title>Save Hack | Mujib Downloader</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header>
+    <a class="brand" href="./" aria-label="Save Hack beranda">
+      <span class="logo" aria-hidden="true">↓</span>
+      <span><b>Save Hack</b><small>MEDIA TOOLS</small></span>
+    </a>
+    <span class="beta">BETA</span>
+  </header>
+  <main>
+    <section class="hero">
+      <p class="eyebrow">SIMPLE. CLEAN. USEFUL.</p>
+      <h1>Media kamu.<br><span>Format pilihanmu.</span></h1>
+      <p class="intro">Tempel tautan media yang kamu miliki atau berhak unduh. Pilih format dan kualitas yang sesuai dengan sumbernya.</p>
+      <section class="panel" aria-labelledby="urlLabel">
+        <label id="urlLabel" for="url">TAUTAN VIDEO ATAU AUDIO</label>
+        <div class="urlrow">
+          <span aria-hidden="true">↗</span>
+          <input id="url" type="url" placeholder="https://..." autocomplete="url" inputmode="url" aria-describedby="urlHelp">
+          <button id="paste" type="button">Tempel</button>
+        </div>
+        <p class="field-help" id="urlHelp">Gunakan tautan HTTPS yang dapat diakses publik.</p>
+        <div class="formats" role="group" aria-label="Format unduhan">
+          <button class="format active" data-format="mp4" type="button" aria-pressed="true">
+            <span aria-hidden="true">▶</span><span><b>MP4</b><small>Video</small></span>
+          </button>
+          <button class="format" data-format="mp3" type="button" aria-pressed="false">
+            <span aria-hidden="true">♫</span><span><b>MP3</b><small>Audio</small></span>
+          </button>
+        </div>
+        <div class="field quality-field" id="qualityField">
+          <label for="quality">KUALITAS VIDEO</label>
+          <select id="quality">
+            <option value="best">Terbaik yang tersedia</option>
+            <option value="480">480p - SD</option>
+            <option value="720">720p - HD</option>
+            <option value="1080" selected>1080p - Full HD</option>
+            <option value="1440">1440p - QHD</option>
+            <option value="2160">2160p - 4K</option>
+          </select>
+          <p class="field-help" id="qualityHelp">Resolusi akhir mengikuti format yang tersedia dari sumber. Video tidak akan diperbesar secara buatan.</p>
+        </div>
+        <label class="rights">
+          <input id="rights" type="checkbox">
+          <span>Saya memiliki hak atau izin untuk mengunduh media ini dan akan mematuhi aturan sumber serta hukum yang berlaku.</span>
+        </label>
+        <button id="analyze" class="primary" type="button">Analisis media <span aria-hidden="true">↗</span></button>
+        <p class="hint">Tidak mendukung DRM, akun privat, paywall, atau pembatasan akses.</p>
+      </section>
+      <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+      <section id="progressPanel" class="panel progress-panel" aria-labelledby="progressTitle" hidden>
+        <div class="progress-heading">
+          <div><p class="eyebrow">PROSES UNDUHAN</p><h2 id="progressTitle">Menyiapkan media</h2></div>
+          <strong id="progressPercent">0%</strong>
+        </div>
+        <div class="progress-track" id="progressTrack" role="progressbar" aria-label="Progres pemrosesan media" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <span id="progressBar"></span>
+        </div>
+        <p id="progressDetails" class="field-help">Menunggu server...</p>
+      </section>
+      <section id="result" class="panel result-panel" hidden>
+        <p class="eyebrow">MEDIA DITEMUKAN</p>
+        <h2 id="title"></h2>
+        <p id="details"></p>
+        <p id="sourceQuality" class="field-help"></p>
+        <button id="download" class="primary" type="button">Unduh file <span aria-hidden="true">↓</span></button>
+      </section>
+    </section>
+    <section class="sources">
+      <p class="eyebrow">SUMBER YANG MUNGKIN DIDUKUNG</p>
+      <div class="chips"><span>YouTube</span><span>TikTok</span><span>Instagram</span><span>Direct URL</span></div>
+      <p class="hint">Dukungan bergantung pada sumber dan dapat berubah. Gunakan hanya media yang berhak kamu simpan.</p>
+    </section>
+    <footer>Unduh secara bertanggung jawab. Hormati hak cipta, privasi, dan ketentuan platform.</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
