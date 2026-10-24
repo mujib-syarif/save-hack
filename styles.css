@@ -47,6 +47,7 @@ input[type=url]{min-width:0;flex:1;background:transparent;border:0;outline:0;col
 .progress-heading .eyebrow{margin:0 0 7px}
 .progress-heading h2,.result-panel h2{font-size:17px;line-height:1.4;margin:0;overflow-wrap:anywhere}
 .progress-heading strong{font-size:15px;font-variant-numeric:tabular-nums}
+.secondary{display:block;width:100%;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#17191f;color:var(--text);font-size:12px;font-weight:650;cursor:pointer}.secondary:disabled{opacity:.55;cursor:wait}
 .progress-track{height:8px;margin-top:17px;border-radius:99px;overflow:hidden;background:#0c0d10;border:1px solid #ffffff12}
 .progress-track span{display:block;width:0;height:100%;background:#f2f3f5;border-radius:99px;transition:width .25s ease}
 .progress-track.indeterminate span{width:35%;animation:progress-slide 1.3s ease-in-out infinite}
