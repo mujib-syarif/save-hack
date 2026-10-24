@@ -324,10 +324,14 @@ def analyze(req: MediaRequest, request: Request):
             "skip_download": True,
         }) as downloader:
             info = downloader.extract_info(url, download=False)
+        mp4_video_formats = [
+            item for item in (info.get("formats") or [])
+            if item.get("ext") == "mp4" and item.get("vcodec") != "none"
+        ]
         heights = sorted({
             int(item["height"])
-            for item in (info.get("formats") or [])
-            if item.get("height") and item.get("vcodec") != "none"
+            for item in mp4_video_formats
+            if item.get("height")
         })
         return {
             "title": info.get("title") or "Media tanpa judul",
@@ -337,6 +341,7 @@ def analyze(req: MediaRequest, request: Request):
             "extractor": info.get("extractor_key") or info.get("extractor"),
             "formats": ["mp4", "mp3"],
             "available_heights": heights,
+            "mp4_available": bool(mp4_video_formats),
             "max_height": max(heights, default=None),
         }
     except HTTPException:
