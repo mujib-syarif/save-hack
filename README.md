@@ -31,7 +31,7 @@ The frontend uses `http://localhost:8000` when opened on localhost. The hosted f
 2. The API analyzes a supported public HTTPS URL.
 3. MP4 users can select best available, 480p, 720p, 1080p, 1440p QHD, or 2160p 4K.
 4. The API selects a compatible format at or below the requested height when possible. It does not upscale a lower-resolution source.
-5. The frontend polls job status and shows extraction progress, then starts a browser download when the file is ready.
+5. The frontend polls job status and shows extraction progress, supports cancellation, then starts a browser download when the file is ready.
 6. Temporary output is deleted after download or job expiry.
 
 MP3 uses the best available audio stream and FFmpeg conversion. The available formats and resolutions depend on the source and can change.
