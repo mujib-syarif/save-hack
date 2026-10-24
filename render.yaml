@@ -11,3 +11,7 @@ services:
         value: "300"
       - key: MAX_CONCURRENT_JOBS
         value: "1"
+      - key: JOB_TTL_SECONDS
+        value: "1800"
+      - key: CORS_ORIGINS
+        value: "https://mujib-syarif.github.io,http://localhost:8080,http://127.0.0.1:8080"
