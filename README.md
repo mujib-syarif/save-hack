@@ -20,7 +20,7 @@ docker compose up --build
 - FFmpeg for audio extraction/conversion and media processing.
 - Docker Compose for local development.
 
-The frontend defaults to `http://localhost:8000` in `app.js`. When deploying the frontend and API separately, change `API_BASE` to the deployed API origin and configure CORS to allow only the frontend's origin.
+`API_BASE` in `app.js` is empty by default, so set it to the API origin (for local Docker Compose: `http://localhost:8000`). Set `ALLOWED_ORIGINS` (comma-separated) on the API to the frontend's exact origin; without it the API allows any origin (`*`). Docker Compose binds the API to `127.0.0.1` only.
 
 ## Scope and limitations
 - MP4/MP3 options depend on what the source provides; not every URL or resolution will work.
@@ -29,13 +29,13 @@ The frontend defaults to `http://localhost:8000` in `app.js`. When deploying the
 - Do not use this service to bypass DRM, paywalls, private-account restrictions, or other access controls.
 - This MVP has no persistent queue, authentication, distributed rate limiter, or hardened public abuse protection. Do not expose it to the public before those are implemented and tested.
 - Initial app limit: 300 MB per file and one concurrent job. These are application settings, not hosting-provider quotas.
-- The URL validation is a basic first layer, not a complete SSRF defense. Public deployment requires network-level egress controls and security review.
+- SSRF defense has two layers: URL validation, plus a connection-level guard that makes name resolution during yt-dlp (including redirects and DNS rebinding) return public IPs only. It does not cover clients that bypass Python's `socket` (for example curl-impersonation backends), so public deployment still requires network-level egress controls and security review.
 
 ## Low-cost hosting plan
 Host the static frontend on Cloudflare Pages or GitHub Pages. Run the Python/FFmpeg backend on a container host or VPS that permits media processing. Cloudflare Workers are suitable for lightweight API/orchestration but are not the runtime for a long-running yt-dlp/FFmpeg process. Free backend tiers may sleep, impose quotas, or disallow sustained workloads; check current provider terms.
 
 ## Before public launch
-1. Replace wildcard CORS with the exact frontend origin.
+1. Set `ALLOWED_ORIGINS` to the exact frontend origin (the default is wildcard).
 2. Add a persistent queue, per-IP/user rate limits, quotas, job timeout and concurrency limits.
 3. Add network-level SSRF protection and restrict outbound destinations.
 4. Add temporary-storage lifecycle and verify files are deleted after completed downloads.

@@ -2,11 +2,13 @@ services:
   api:
     build: ./backend
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       DOWNLOAD_DIR: /tmp/downloads
       MAX_DOWNLOAD_MB: "300"
       MAX_CONCURRENT_JOBS: "1"
+      # Pisahkan dengan koma. Default "*" hanya cocok untuk pengembangan lokal.
+      ALLOWED_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080"
     volumes:
       - download_tmp:/tmp/downloads
     restart: unless-stopped
