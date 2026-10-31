@@ -23,7 +23,8 @@ class DownloadRequest(MediaRequest):
 def validate_url(raw):
  try:
   p=urlparse(raw.strip()); host=(p.hostname or "").lower().rstrip(".")
-  if p.scheme!="https" or not host: raise ValueError()
+  if p.scheme!="https" or not host or p.username or p.password: raise ValueError()
+  if p.port not in (None,443): raise ValueError()
   try:
    ip=ipaddress.ip_address(host)
    if not ip.is_global: raise ValueError()
@@ -55,7 +56,7 @@ def analyze(req:MediaRequest):
   with yt_dlp.YoutubeDL({"quiet":True,"no_warnings":True,"noplaylist":True,"socket_timeout":12,"skip_download":True}) as y:
    i=y.extract_info(url,download=False)
   return {"title":i.get("title") or "Media tanpa judul","uploader":i.get("uploader") or i.get("channel") or "Tidak diketahui","duration":i.get("duration"),"thumbnail":i.get("thumbnail"),"extractor":i.get("extractor_key") or i.get("extractor"),"formats":["mp4","mp3"]}
- except Exception as e: raise HTTPException(422,"URL gagal dianalisis; sumber mungkin tidak didukung atau akses dibatasi. "+str(e)[:180])
+ except Exception: raise HTTPException(422,"URL gagal dianalisis; sumber mungkin tidak didukung atau akses dibatasi.")
 @app.post("/download")
 def download(req:DownloadRequest):
  if not req.rights_confirmed: raise HTTPException(400,"Konfirmasi hak unduh wajib diisi.")
@@ -72,6 +73,6 @@ def download(req:DownloadRequest):
   media="audio/mpeg" if path.suffix.lower()==".mp3" else "video/mp4"
   return FileResponse(path,media_type=media,filename="save-hack"+path.suffix,background=BackgroundTask(cleanup,path))
  except HTTPException: raise
- except Exception as e: raise HTTPException(422,"Download gagal: "+str(e)[:200])
+ except Exception: raise HTTPException(422,"Download gagal. Periksa URL, format, dan ketersediaan sumber lalu coba lagi.")
  finally:
   SEM.release()
