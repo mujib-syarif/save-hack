@@ -19,7 +19,11 @@ class ValidateUrlTests(unittest.TestCase):
         with self.assertRaises(HTTPException):
             validate_url("https://youtube.com:8443/watch?v=abc")
 
-    def test_rejects_localhost(self):
+    @patch("main.socket.getaddrinfo")
+    def test_rejects_localhost(self, getaddrinfo):
+        getaddrinfo.return_value = [
+            (2, 1, 6, "", ("127.0.0.1", 443))
+        ]
         with self.assertRaises(HTTPException):
             validate_url("https://localhost/video.mp4")
 
