@@ -1,4 +1,4 @@
-import os, uuid, socket, ipaddress, threading, logging
+import os, uuid, socket, ipaddress, threading, logging, shutil
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
@@ -75,7 +75,7 @@ def opts(job,fmt):
   o.update({"format":"best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]/best","merge_output_format":"mp4"})
  return o
 @app.get("/health")
-def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.1","extractor":"yt-dlp","yt_dlp_version":getattr(yt_dlp.version,"__version__","unknown")}
+def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.2","extractor":"yt-dlp","yt_dlp_version":getattr(yt_dlp.version,"__version__","unknown"),"ffmpeg":bool(shutil.which("ffmpeg"))}
 @app.post("/analyze")
 def analyze(req:MediaRequest):
  if not req.rights_confirmed: raise HTTPException(400,"Konfirmasi hak unduh wajib diisi.")
@@ -94,6 +94,7 @@ def download(req:DownloadRequest):
  if not SEM.acquire(blocking=False): raise HTTPException(429,"Server sibuk. Coba lagi sebentar.")
  job=uuid.uuid4().hex
  try:
+  logger.info("Download started: format=%s host=%s",req.format,urlparse(url).hostname)
   with egress_guard(), yt_dlp.YoutubeDL(opts(job,req.format)) as y: y.download([url])
   found=[p for p in OUT.glob(job+".*") if p.is_file() and p.suffix not in {".part",".ytdl"}]
   if not found: raise HTTPException(422,"Engine tidak menghasilkan file.")
@@ -101,8 +102,11 @@ def download(req:DownloadRequest):
   if path.stat().st_size>MAX_MB*1024*1024:
    cleanup(path); raise HTTPException(413,f"File melebihi batas {MAX_MB} MB.")
   media="audio/mpeg" if path.suffix.lower()==".mp3" else "video/mp4"
+  logger.info("Download completed: format=%s bytes=%s",req.format,path.stat().st_size)
   return FileResponse(path,media_type=media,filename="save-hack"+path.suffix,background=BackgroundTask(cleanup,path))
  except HTTPException: raise
- except Exception: raise HTTPException(422,"Download gagal. Periksa URL, format, dan ketersediaan sumber lalu coba lagi.")
+ except Exception as exc:
+  logger.exception("Download failed (%s)",type(exc).__name__)
+  raise HTTPException(422,f"Download gagal ({type(exc).__name__}). Detail teknis tersimpan di log Railway.")
  finally:
   SEM.release()
