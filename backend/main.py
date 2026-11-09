@@ -1,4 +1,4 @@
-import os, uuid, socket, ipaddress, threading
+import os, uuid, socket, ipaddress, threading, logging
 from contextlib import contextmanager
 from pathlib import Path
 from urllib.parse import urlparse
@@ -10,7 +10,9 @@ from starlette.background import BackgroundTask
 from pydantic import BaseModel, Field
 import yt_dlp
 
-app=FastAPI(title="Save Hack Media API",version="0.1.0")
+logging.basicConfig(level=os.getenv("LOG_LEVEL","INFO"))
+logger=logging.getLogger("save_hack")
+app=FastAPI(title="Save Hack Media API",version="0.1.1")
 def parse_origins(raw):
  return [o.strip() for o in (raw or "*").split(",") if o.strip()] or ["*"]
 app.add_middleware(CORSMiddleware,allow_origins=parse_origins(os.getenv("ALLOWED_ORIGINS")),allow_credentials=False,allow_methods=["GET","POST"],allow_headers=["Content-Type"])
@@ -73,7 +75,7 @@ def opts(job,fmt):
   o.update({"format":"best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]/best","merge_output_format":"mp4"})
  return o
 @app.get("/health")
-def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.0"}
+def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.1","extractor":"yt-dlp","yt_dlp_version":getattr(yt_dlp.version,"__version__","unknown")}
 @app.post("/analyze")
 def analyze(req:MediaRequest):
  if not req.rights_confirmed: raise HTTPException(400,"Konfirmasi hak unduh wajib diisi.")
@@ -82,7 +84,9 @@ def analyze(req:MediaRequest):
   with egress_guard(), yt_dlp.YoutubeDL({"quiet":True,"no_warnings":True,"noplaylist":True,"socket_timeout":12,"skip_download":True}) as y:
    i=y.extract_info(url,download=False)
   return {"title":i.get("title") or "Media tanpa judul","uploader":i.get("uploader") or i.get("channel") or "Tidak diketahui","duration":i.get("duration"),"thumbnail":i.get("thumbnail"),"extractor":i.get("extractor_key") or i.get("extractor"),"formats":["mp4","mp3"]}
- except Exception: raise HTTPException(422,"URL gagal dianalisis; sumber mungkin tidak didukung atau akses dibatasi.")
+ except Exception as exc:
+  logger.exception("Media analysis failed (%s)",type(exc).__name__)
+  raise HTTPException(422,"Analisis gagal pada extractor media. Sumber mungkin membatasi server, link sudah kedaluwarsa, atau extractor perlu pembaruan. Periksa log Railway untuk detail.")
 @app.post("/download")
 def download(req:DownloadRequest):
  if not req.rights_confirmed: raise HTTPException(400,"Konfirmasi hak unduh wajib diisi.")
