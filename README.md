@@ -41,3 +41,9 @@ Host the static frontend on Cloudflare Pages or GitHub Pages. Run the Python/FFm
 4. Add temporary-storage lifecycle and verify files are deleted after completed downloads.
 5. Add abuse reporting, privacy notice, terms of use, copyright/takedown handling and monitoring.
 6. Review current platform terms and applicable law before enabling each source publicly.
+
+## Frontend API configuration
+Set `window.SAVE_HACK_API_BASE` in `config.js` to the deployed FastAPI origin (without a trailing slash). The frontend loads this file before `app.js`. Keep backend `ALLOWED_ORIGINS` restricted to the exact frontend origin.
+
+## Download performance
+The extractor enables four concurrent HLS/DASH fragment downloads and a 10 MiB HTTP chunk size where supported. Actual speed remains limited by the source server, network, and platform rules; this is not guaranteed to match IDM. The current browser client buffers the completed response before saving, so large downloads can use substantial device memory.
