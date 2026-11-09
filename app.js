@@ -1,5 +1,5 @@
 // Set API_BASE to the deployed backend URL after the Render service is live.
-const API_BASE = "";
+const API_BASE = (window.SAVE_HACK_API_BASE || "").replace(/\/$/, "");
 function requireBackend(){ if(!API_BASE){ status("Frontend sudah dipasang, tetapi backend download belum dihubungkan."); return false; } return true; }
 let format = "mp4", currentUrl = "";
 const $ = s => document.querySelector(s);
