@@ -72,7 +72,8 @@ def opts(job,fmt):
  if fmt=="mp3":
   o.update({"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}]})
  else:
-  o.update({"format":"best[ext=mp4][vcodec^=avc1][acodec^=mp4a]/best[ext=mp4]/best","merge_output_format":"mp4"})
+  # Prefer separate video+audio streams, then fall back to a single-file MP4 or any playable format.
+  o.update({"format":"bv*+ba/best[ext=mp4]/best","merge_output_format":"mp4","postprocessor_args":{"Merger":["-movflags","+faststart"]}})
  return o
 @app.get("/health")
 def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.2","extractor":"yt-dlp","yt_dlp_version":getattr(yt_dlp.version,"__version__","unknown"),"ffmpeg":bool(shutil.which("ffmpeg"))}
@@ -85,8 +86,13 @@ def analyze(req:MediaRequest):
    i=y.extract_info(url,download=False)
   return {"title":i.get("title") or "Media tanpa judul","uploader":i.get("uploader") or i.get("channel") or "Tidak diketahui","duration":i.get("duration"),"thumbnail":i.get("thumbnail"),"extractor":i.get("extractor_key") or i.get("extractor"),"formats":["mp4","mp3"]}
  except Exception as exc:
+  detail=str(exc)
   logger.exception("Media analysis failed (%s)",type(exc).__name__)
-  raise HTTPException(422,"Analisis gagal pada extractor media. Sumber mungkin membatasi server, link sudah kedaluwarsa, atau extractor perlu pembaruan. Periksa log Railway untuk detail.")
+  if "Sign in to confirm" in detail or "not a bot" in detail.lower():
+   message="YouTube menolak request dari IP server cloud (verifikasi anti-bot). Coba sumber lain atau gunakan URL yang memang dapat diakses publik; ini bukan kesalahan format video."
+  else:
+   message="Analisis gagal. Link mungkin tidak tersedia, sumber membatasi akses server, atau extractor perlu pembaruan."
+  raise HTTPException(422,message)
 @app.post("/download")
 def download(req:DownloadRequest):
  if not req.rights_confirmed: raise HTTPException(400,"Konfirmasi hak unduh wajib diisi.")
