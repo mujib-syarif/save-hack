@@ -64,7 +64,7 @@ def cleanup(path):
  try: path.unlink(missing_ok=True)
  except Exception: pass
 def opts(job,fmt):
- o={"outtmpl":str(OUT/(job+".%(ext)s")),"noplaylist":True,"quiet":True,"no_warnings":True,"restrictfilenames":True,"socket_timeout":15,"retries":1,"fragment_retries":1,"max_filesize":MAX_MB*1024*1024}
+ o={"outtmpl":str(OUT/(job+".%(ext)s")),"noplaylist":True,"quiet":True,"no_warnings":True,"restrictfilenames":True,"socket_timeout":15,"retries":1,"fragment_retries":1,"max_filesize":MAX_MB*1024*1024,"concurrent_fragment_downloads":4,"http_chunk_size":10*1024*1024}
  if fmt=="mp3":
   o.update({"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}]})
  else:
