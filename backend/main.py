@@ -72,8 +72,9 @@ def opts(job,fmt):
  if fmt=="mp3":
   o.update({"format":"bestaudio/best","postprocessors":[{"key":"FFmpegExtractAudio","preferredcodec":"mp3","preferredquality":"192"}]})
  else:
-  # Prefer separate video+audio streams, then fall back to a single-file MP4 or any playable format.
-  o.update({"format":"bv*+ba/best[ext=mp4]/best","merge_output_format":"mp4","postprocessor_args":{"Merger":["-movflags","+faststart"]}})
+  # Prefer a compatible MP4 with audio+video, then any single-file compatible format,
+  # then best video+audio streams requiring FFmpeg merge.
+  o.update({"format":"best[ext=mp4][acodec!=none][vcodec!=none]/best[ext=mp4]/best[vcodec!=none][acodec!=none]/bv*+ba/b","merge_output_format":"mp4","postprocessor_args":{"Merger":["-movflags","+faststart"]}})
  return o
 @app.get("/health")
 def health(): return {"ok":True,"service":"Save Hack Media API","version":"0.1.2","extractor":"yt-dlp","yt_dlp_version":getattr(yt_dlp.version,"__version__","unknown"),"ffmpeg":bool(shutil.which("ffmpeg"))}
@@ -113,6 +114,13 @@ def download(req:DownloadRequest):
  except HTTPException: raise
  except Exception as exc:
   logger.exception("Download failed (%s)",type(exc).__name__)
-  raise HTTPException(422,f"Download gagal ({type(exc).__name__}). Detail teknis tersimpan di log Railway.")
+  detail=str(exc).lower()
+  if "sign in to confirm" in detail or "not a bot" in detail:
+   message="YouTube menolak request dari IP server cloud karena verifikasi anti-bot. Layanan tidak melewati mekanisme verifikasi akun."
+  elif "requested format is not available" in detail:
+   message="Format video yang tersedia tidak cocok dengan pilihan sebelumnya. Coba ulangi."
+  else:
+   message=f"Download gagal ({type(exc).__name__}). Detail teknis tersimpan di log Railway."
+  raise HTTPException(422,message)
  finally:
   SEM.release()
