@@ -46,7 +46,9 @@ def egress_guard():
   with _GUARD_LOCK: _GUARD_DEPTH-=1
 def validate_url(raw):
  try:
-  p=urlparse(raw.strip()); host=(p.hostname or "").lower().rstrip(".")
+  # Bersihkan tanda kurung/markdown yang kadang ikut tersalin bersama tautan.
+  cleaned=raw.strip().strip("[]()<>\\\"'").rstrip(".,;")
+  p=urlparse(cleaned); host=(p.hostname or "").lower().rstrip(".")
   if p.scheme!="https" or not host or p.username or p.password: raise ValueError()
   if p.port not in (None,443): raise ValueError()
   try:
@@ -58,7 +60,7 @@ def validate_url(raw):
    if host not in HOSTS and not direct: raise ValueError()
    for info in socket.getaddrinfo(host,443,type=socket.SOCK_STREAM):
     if not is_public_ip(info[4][0]): raise ValueError()
-  return raw.strip()
+  return cleaned
  except Exception: raise HTTPException(400,"URL tidak valid, alamat privat, atau domain belum didukung.")
 def cleanup(path):
  try: path.unlink(missing_ok=True)
