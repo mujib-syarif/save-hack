@@ -1,3 +1,5 @@
 fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
-yt-dlp
+requests>=2.31,<3
+# Extractors break often; the Docker build always installs the newest release. Rebuild to update.
+yt-dlp>=2025.1.1
