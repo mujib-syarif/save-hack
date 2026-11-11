@@ -11,3 +11,5 @@ services:
         value: "300"
       - key: MAX_CONCURRENT_JOBS
         value: "1"
+      - key: MAX_STORAGE_MB
+        value: "512"
