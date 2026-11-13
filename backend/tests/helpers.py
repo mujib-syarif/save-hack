@@ -107,6 +107,26 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(429, b"slow down", ctype="text/plain")
         if path == "/master.m3u8":
             return self._send(200, HLS_MASTER.encode(), ctype="application/vnd.apple.mpegurl")
+        if path == "/drm-master.m3u8":  # DRM only declared inside the variant playlist
+            return self._send(200, b'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\ndrm-var.m3u8\n', ctype="application/vnd.apple.mpegurl")
+        if path == "/drm-var.m3u8":
+            return self._send(200, b'#EXTM3U\n#EXT-X-KEY:METHOD=SAMPLE-AES,URI="skd://abc",KEYFORMAT="com.apple.streamingkeydelivery"\n#EXTINF:4,\nseg1.ts\n#EXT-X-ENDLIST\n', ctype="application/vnd.apple.mpegurl")
+        if path == "/live-master.m3u8":
+            return self._send(200, b'#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\nlive-var.m3u8\n', ctype="application/vnd.apple.mpegurl")
+        if path == "/live-var.m3u8":
+            return self._send(200, b'#EXTM3U\n#EXTINF:4,\nseg1.ts\n', ctype="application/vnd.apple.mpegurl")
+        if path == "/trickle.bin":  # one byte per 0.3 s, forever
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            try:
+                for _ in range(200):
+                    self.wfile.write(b"x")
+                    self.wfile.flush()
+                    time.sleep(0.3)
+            except OSError:
+                pass
+            return None
         if path == "/manifest.mpd":
             return self._send(200, DASH_MPD.encode(), ctype="application/dash+xml")
         if path == "/flaky.bin":  # first connection dies half-way, later ones are served normally

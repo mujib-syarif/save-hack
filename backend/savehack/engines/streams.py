@@ -11,7 +11,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from ..config import settings
 from ..errors import AppError, ErrorCode
@@ -87,6 +87,21 @@ def parse_hls(text: str) -> dict:
     return out
 
 
+def hls_key_flags(text: str) -> tuple:
+    """(drm, aes128) for the #EXT-X-KEY / #EXT-X-SESSION-KEY lines of one playlist."""
+    drm = enc = False
+    for line in text.splitlines():
+        if line.startswith(("#EXT-X-KEY", "#EXT-X-SESSION-KEY")):
+            a = _attrs(line)
+            method = a.get("METHOD", "NONE").upper()
+            fmt = (a.get("KEYFORMAT", "") + a.get("URI", "")).lower()
+            if method not in ("NONE", "AES-128") or any(s in fmt for s in ("fairplay", "widevine", "playready", "skd://")):
+                drm = True
+            elif method == "AES-128":
+                enc = True
+    return drm, enc
+
+
 def parse_dash(text: str) -> dict:
     low = text.lower()
     if "<!doctype" in low or "<!entity" in low:  # anywhere: padding must not smuggle a DTD past the check
@@ -103,18 +118,18 @@ def parse_dash(text: str) -> dict:
     def local(tag):
         return tag.rsplit("}", 1)[-1]
 
+    # ContentProtection may sit on the MPD, Period, AdaptationSet or Representation: look at every element.
+    for el in root.iter():
+        if local(el.tag) == "ContentProtection":
+            scheme = (el.get("schemeIdUri") or "").lower()
+            if any(s in scheme for s in DRM_SCHEMES):
+                out["drm"] = True
     for aset in root.iter():
         if local(aset.tag) != "AdaptationSet":
             continue
-        aprot = [(cp.get("schemeIdUri") or "").lower() for cp in aset if local(cp.tag) == "ContentProtection"]
-        if any(any(s in p for s in DRM_SCHEMES) for p in aprot):
-            out["drm"] = True
         for rep in aset:
             if local(rep.tag) != "Representation":
                 continue
-            rprot = [(cp.get("schemeIdUri") or "").lower() for cp in rep if local(cp.tag) == "ContentProtection"]
-            if any(any(s in p for s in DRM_SCHEMES) for p in rprot):
-                out["drm"] = True
             mime = rep.get("mimeType") or aset.get("mimeType") or ""
             ctype = (aset.get("contentType") or mime.split("/")[0]).lower()
             codecs = rep.get("codecs") or aset.get("codecs") or ""
@@ -185,6 +200,8 @@ class StreamEngine(Engine):
                 return None
         except ValueError as exc:
             raise AppError(ErrorCode.UNSUPPORTED_SOURCE, "Manifest stream tidak valid atau tidak didukung.", detail=str(exc))
+        if stream_type == "hls" and parsed["type"] == "master" and not parsed["drm"]:
+            self._inspect_variant(parsed, final)
         if parsed.get("live"):
             raise AppError(ErrorCode.UNSUPPORTED_SOURCE, "Siaran langsung (live) belum bisa diunduh.", detail="live manifest")
         if parsed["drm"]:
@@ -201,6 +218,30 @@ class StreamEngine(Engine):
                                "encrypted_aes128": bool(parsed.get("encrypted")), "subtitle_tracks": [s["name"] or s["lang"] for s in parsed["subtitles"]]},
                          payload={"downloader": "stream", "manifest_url": final})
         return info
+
+    @staticmethod
+    def _inspect_variant(parsed: dict, base_url: str) -> None:
+        """A master playlist carries no #EXT-X-KEY of its own: DRM and liveness live in the media playlists.
+
+        Fetch the first video variant (and first audio rendition) through the guarded client and check them.
+        A fetch failure is not fatal here; the download itself still runs inside the egress guard.
+        """
+        uris = [v["uri"] for v in parsed["variants"][:1]] + [a["uri"] for a in parsed["audio"][:1] if a.get("uri")]
+        for uri in uris:
+            try:
+                text, _final, _ctype = fetch_text(urljoin(base_url, uri), settings.max_manifest_bytes, headers={"Accept": "*/*"})
+            except AppError as exc:
+                if exc.code in (ErrorCode.AUTHENTICATION_REQUIRED, ErrorCode.SOURCE_BLOCKED):
+                    raise
+                logger.info("variant playlist not inspected: %s", exc.code)
+                continue
+            if not text.lstrip("\ufeff \r\n\t").startswith("#EXTM3U"):
+                continue
+            drm, enc = hls_key_flags(text)
+            parsed["drm"] = parsed["drm"] or drm
+            parsed["encrypted"] = parsed.get("encrypted") or enc
+            if "#EXT-X-ENDLIST" not in text and "#EXT-X-PLAYLIST-TYPE:VOD" not in text:
+                parsed["live"] = True
 
     def download(self, info: MediaInfo, fmt: FormatOption, ctx: JobContext) -> Path:
         from .ytdlp_engine import run_ytdlp_download, stream_selector

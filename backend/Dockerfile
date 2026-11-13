@@ -23,6 +23,9 @@ RUN mkdir -p /tmp/downloads \
     && chown -R appuser:appuser /tmp/downloads /app
 USER appuser
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import os,urllib.request;urllib.request.urlopen('http://127.0.0.1:%s/health' % os.environ.get('PORT','8000'),timeout=4)" || exit 1
+
 # Railway injects PORT at runtime; 8000 is only the local default.
 EXPOSE 8000
 # Single process on purpose: job state, rate limits and the egress guard are in-memory.

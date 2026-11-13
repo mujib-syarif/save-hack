@@ -25,7 +25,12 @@ from .direct import FILE_EXTENSIONS, HTML_TYPES, DirectEngine, kind_for
 logger = logging.getLogger("save_hack.html")
 
 STREAM_EXT = {".m3u8", ".mpd"}
-MEDIA_URL_RE = re.compile(r"""https?:\\?/\\?/(?:[^\s"'<>\\)]|\\/)+?\.(?:mp4|webm|m4v|mov|mp3|m4a|m3u8|mpd)(?:\?(?:[^\s"'<>\\)]|\\/)*)?""", re.I)
+# Bounded repetition keeps the scan linear-ish: an unbounded lazy quantifier made input such as "http://" * N quadratic
+# (a 56 KB page froze the whole server). URLs longer than the bounds are not media links worth offering anyway.
+MEDIA_URL_RE = re.compile(r"""https?:\\?/\\?/(?:[^\s"'<>\\)]|\\/){1,512}?\.(?:mp4|webm|m4v|mov|mp3|m4a|m3u8|mpd)(?:\?(?:[^\s"'<>\\)]|\\/){0,512})?""", re.I)
+MAX_SCAN_CHARS = 100_000  # per text blob; scripts/HTML beyond this are not scanned for bare URLs
+MAX_SCAN_TOTAL = 300_000  # across all blobs of one page
+MAX_SCAN_HITS = 200
 ICON_HINTS = ("sprite", "favicon", "icon", "logo", "pixel", "tracking", "spacer", "1x1", "blank", "avatar", "emoji")
 MAX_CANDIDATES = 30
 MAX_PROBES = 10
@@ -282,11 +287,16 @@ def parse_html(html: str, base_url: str) -> PageData:
             if eu:
                 page.embeds.append(absu(eu))
 
+    budget = MAX_SCAN_TOTAL
     for text in c.script_text:
-        for hit in MEDIA_URL_RE.findall(text):
+        if budget <= 0:
+            break
+        chunk = text[:min(MAX_SCAN_CHARS, budget)]
+        budget -= len(chunk)
+        for hit in MEDIA_URL_RE.findall(chunk)[:MAX_SCAN_HITS]:
             u = hit.replace("\\/", "/")
             page.add(u, _guess_kind(u), "script-url")
-    for m_ in MEDIA_URL_RE.findall(html[:400_000]):
+    for m_ in MEDIA_URL_RE.findall(html[:MAX_SCAN_CHARS])[:MAX_SCAN_HITS]:
         u = m_.replace("\\/", "/")
         page.add(u, _guess_kind(u), "inline-url")
     page.embeds = list(dict.fromkeys(e for e in page.embeds if e))[:5]
