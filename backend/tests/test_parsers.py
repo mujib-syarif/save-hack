@@ -65,6 +65,17 @@ class HtmlParseTests(unittest.TestCase):
         page = parse_html('<video src="javascript:alert(1)"></video><img src="data:image/png;base64,AAAA"><a href="file:///etc/passwd">x</a>', "https://x.example.com/")
         self.assertEqual(page.candidates, [])
 
+    def test_media_url_scanner_bounds_untrusted_candidates(self):
+        from savehack.engines.html_parser import _extract_media_urls
+
+        hostile = "https://" + ("a" * 5000) + ".mp4"
+        self.assertEqual(list(_extract_media_urls(hostile)), [])
+        escaped = "https:\\/\\/cdn.example\\/audio.m4a"
+        self.assertEqual(
+            list(_extract_media_urls("https://cdn.example/video.mp4 " + escaped)),
+            ["https://cdn.example/video.mp4", "https://cdn.example/audio.m4a"],
+        )
+
     def test_iso_duration(self):
         self.assertEqual(parse_iso_duration("PT90S"), 90.0)
         self.assertEqual(parse_iso_duration("PT1M30S"), 90.0)
