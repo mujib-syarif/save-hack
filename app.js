@@ -89,7 +89,8 @@ function showProgress(visible, percent = null, text = "") {
   $("#progresstext").textContent = text;
 }
 
-function setButtons({ download = true, cancel = false, retry = false } = {}) {
+function setButtons({ download = true, cancel = false, retry = false, save = false } = {}) {
+  $("#save").hidden = !save;
   $("#download").hidden = !download;
   $("#cancel").hidden = !cancel;
   $("#retry").hidden = !retry;
@@ -153,6 +154,7 @@ function renderResult(data) {
   $("#details").textContent = parts.join(" · ") || "Detail tidak tersedia";
   $("#source").textContent = `Sumber: ${m.site || "Tidak diketahui"} · mesin: ${m.engine}`;
   renderPreview(m);
+  renderEntries(m.entries || []);
   state.formatId = data.default_format;
   // If the default is audio-only content, switch the category so the list is not empty.
   if (!data.formats.some((f) => ["video", "image", "file"].includes(f.kind)) && data.formats.some((f) => f.kind === "audio")) setCategory("mp3", false);
@@ -160,6 +162,24 @@ function renderResult(data) {
   showProgress(false);
   setButtons({ download: true });
   $("#result").hidden = false;
+}
+
+// Playlist results: offer each item as its own analysis (the server lists items, it does not bulk-download).
+function renderEntries(entries) {
+  const box = $("#entries");
+  const list = $("#entrieslist");
+  list.replaceChildren();
+  const usable = entries.filter((e) => e && httpsUrl(e.url));
+  box.hidden = !usable.length;
+  if (!usable.length) return;
+  $("#entriessummary").textContent = `Playlist: ${usable.length} item`;
+  for (const e of usable) {
+    const li = el("li", {}, el("span", { text: e.title || e.url, title: e.title || e.url }));
+    const btn = el("button", { type: "button", text: "Pilih" });
+    btn.addEventListener("click", () => { $("#url").value = e.url; analyze(); window.scrollTo({ top: 0, behavior: "smooth" }); });
+    li.append(btn);
+    list.append(li);
+  }
 }
 
 function setCategory(cat, rerender = true) {
@@ -180,6 +200,7 @@ async function analyze() {
   await stopJob(true);
   setBusy(true);
   $("#result").hidden = true;
+  $("#save").hidden = true;
   status("Menganalisis URL… beberapa sumber bisa memerlukan hingga 45 detik.");
   try {
     const data = await post("/api/analyze", { url: $("#url").value.trim(), rights_confirmed: true });
@@ -212,7 +233,7 @@ function stopPolling() {
   if (state.polling) { clearTimeout(state.polling); state.polling = null; }
 }
 
-async function startDownload() {
+async function startDownload(resumed = false) {
   if (!state.jobId || !state.formatId || !valid()) return;
   stopPolling();
   setButtons({ download: false, cancel: true });
@@ -225,7 +246,13 @@ async function startDownload() {
       showProgress(false);
       setButtons({ download: true });
       status("Sesi analisis sudah kedaluwarsa. Menganalisis ulang…");
+      const wanted = state.formatId;
       await analyze();
+      // Resume automatically once, keeping the quality the user had picked when it is still offered.
+      if (!resumed && state.jobId) {
+        if (state.analysis && state.analysis.formats.some((f) => f.id === wanted)) { state.formatId = wanted; renderOptions(); }
+        return startDownload(true);
+      }
       return;
     }
     return failed(e);
@@ -256,11 +283,17 @@ function poll() {
 
 function finished(job) {
   showProgress(true, 100, `Selesai · ${job.file.name} · ${fmtBytes(job.file.size)}`);
-  setButtons({ download: true });
-  status("File siap. Unduhan dimulai oleh browser (periksa folder Download).", "success");
+  const href = `${API_BASE}/api/download/${encodeURIComponent(state.jobId)}`;
+  // The finished file stays on the server for a short while: expose a plain link so a blocked auto-download
+  // (iOS Safari, popup rules) can be finished with one tap, without starting a second job.
+  setButtons({ download: false, save: true });
+  const save = $("#save");
+  save.href = href;
+  save.setAttribute("download", job.file.name);
+  status("File siap. Jika unduhan tidak mulai sendiri, ketuk “Simpan file”.", "success");
   // Let the browser stream the file straight to disk: no in-memory blob, resumable by the browser.
   const a = document.createElement("a");
-  a.href = `${API_BASE}/api/download/${encodeURIComponent(state.jobId)}`;
+  a.href = href;
   a.rel = "noopener";
   a.download = job.file.name;
   document.body.append(a);
