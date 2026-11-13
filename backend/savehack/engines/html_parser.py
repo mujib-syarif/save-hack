@@ -25,16 +25,43 @@ from .direct import FILE_EXTENSIONS, HTML_TYPES, DirectEngine, kind_for
 logger = logging.getLogger("save_hack.html")
 
 STREAM_EXT = {".m3u8", ".mpd"}
-# Bounded repetition keeps the scan linear-ish: an unbounded lazy quantifier made input such as "http://" * N quadratic
-# (a 56 KB page froze the whole server). URLs longer than the bounds are not media links worth offering anyway.
-MEDIA_URL_RE = re.compile(r"""https?:\\?/\\?/(?:[^\s"'<>\\)]|\\/){1,512}?\.(?:mp4|webm|m4v|mov|mp3|m4a|m3u8|mpd)(?:\?(?:[^\s"'<>\\)]|\\/){0,512})?""", re.I)
-MAX_SCAN_CHARS = 100_000  # per text blob; scripts/HTML beyond this are not scanned for bare URLs
-MAX_SCAN_TOTAL = 300_000  # across all blobs of one page
-MAX_SCAN_HITS = 200
+MEDIA_URL_START_RE = re.compile(r"https?:\\?/\\?/", re.I)
+MEDIA_URL_SUFFIX_RE = re.compile(r"\.(?:mp4|webm|m4v|mov|mp3|m4a|m3u8|mpd)(?:\?.*)?$", re.I)
+MAX_MEDIA_URL_LENGTH = 2048
+MAX_MEDIA_SCAN_CHARS = 400_000
+MAX_MEDIA_SCAN_WORK = 1_000_000  # total characters walked per call: nested "http://" starts must not multiply the cost
+MAX_MEDIA_HITS = 200
 ICON_HINTS = ("sprite", "favicon", "icon", "logo", "pixel", "tracking", "spacer", "1x1", "blank", "avatar", "emoji")
 MAX_CANDIDATES = 30
 MAX_PROBES = 10
 
+
+def _extract_media_urls(text: str):
+    """Extract bounded media URLs without backtracking over untrusted page text."""
+    text = text[:MAX_MEDIA_SCAN_CHARS]
+    work, hits = MAX_MEDIA_SCAN_WORK, 0
+    for match in MEDIA_URL_START_RE.finditer(text):
+        if work <= 0 or hits >= MAX_MEDIA_HITS:
+            return
+        start = match.start()
+        end = match.end()
+        limit = min(len(text), start + MAX_MEDIA_URL_LENGTH)
+        while end < limit:
+            char = text[end]
+            if ord(char) == 92 and end + 1 < limit and text[end + 1] == "/":
+                end += 2
+                continue
+            if ord(char) <= 32 or ord(char) in (34, 39, 60, 62, 92, 41):
+                break
+            end += 1
+        work -= end - start
+        raw = text[start:end]
+        if end == limit and end < len(text) and ord(text[end]) > 32 and ord(text[end]) not in (34, 39, 60, 62, 92, 41):
+            continue
+        normalized = raw.replace("\\/", "/")
+        if MEDIA_URL_SUFFIX_RE.search(normalized):
+            hits += 1
+            yield normalized
 
 class NotHtml(Exception):
     """The URL answered with something that is not an HTML page."""
@@ -287,17 +314,10 @@ def parse_html(html: str, base_url: str) -> PageData:
             if eu:
                 page.embeds.append(absu(eu))
 
-    budget = MAX_SCAN_TOTAL
-    for text in c.script_text:
-        if budget <= 0:
-            break
-        chunk = text[:min(MAX_SCAN_CHARS, budget)]
-        budget -= len(chunk)
-        for hit in MEDIA_URL_RE.findall(chunk)[:MAX_SCAN_HITS]:
-            u = hit.replace("\\/", "/")
+    for script in c.script_text:
+        for u in _extract_media_urls(script):
             page.add(u, _guess_kind(u), "script-url")
-    for m_ in MEDIA_URL_RE.findall(html[:MAX_SCAN_CHARS])[:MAX_SCAN_HITS]:
-        u = m_.replace("\\/", "/")
+    for u in _extract_media_urls(html):
         page.add(u, _guess_kind(u), "inline-url")
     page.embeds = list(dict.fromkeys(e for e in page.embeds if e))[:5]
     return page
