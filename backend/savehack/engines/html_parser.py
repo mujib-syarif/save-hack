@@ -43,6 +43,9 @@ def _extract_media_urls(text: str):
         limit = min(len(text), start + MAX_MEDIA_URL_LENGTH)
         while end < limit:
             char = text[end]
+            if ord(char) == 92 and end + 1 < limit and text[end + 1] == "/":
+                end += 2
+                continue
             if ord(char) <= 32 or ord(char) in (34, 39, 60, 62, 92, 41):
                 break
             end += 1
