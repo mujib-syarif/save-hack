@@ -82,6 +82,40 @@ class RouterTests(NetCase):
         self.assertEqual(info.engine, "direct")
         self.assertEqual(info.formats[0].ext, "pdf")
 
+    def test_generic_ytdlp_fallback_runs_after_html_parser_finds_nothing(self):
+        class GenericYt(FakeYtDlp):
+            def __init__(self):
+                super().__init__(claims=())
+                self.generic_calls = []
+            def analyze_generic(self, url):
+                self.generic_calls.append(url)
+                return MediaInfo(url=url, engine="ytdlp", site="Generic", title="generic media",
+                                 formats=[FormatOption(id="mp4-best", label="video", kind="video",
+                                                       payload={"downloader": "ytdlp"})])
+        self.server.httpd.page = "<title>JS player</title><p>player bootstraps in script</p>"
+        yt = GenericYt()
+        info = make_router(yt).analyze(self.server.url("/page.html"))
+        self.assertEqual(info.engine, "ytdlp")
+        self.assertEqual(yt.generic_calls, [self.server.url("/page.html")])
+        self.assertEqual([a["engine"] for a in info.attempts], ["ytdlp", "html", "ytdlp_generic"])
+
+    def test_generic_fallback_is_not_used_after_dedicated_extractor_blocks(self):
+        class GenericYt(FakeYtDlp):
+            def __init__(self):
+                super().__init__(claims=("127.0.0.1",),
+                                 error=AppError(ErrorCode.SOURCE_BLOCKED, detail="HTTP 403"))
+                self.generic_calls = 0
+            def analyze_generic(self, url):
+                self.generic_calls += 1
+                return None
+        yt = GenericYt()
+        self.server.httpd.page = '<video src="/video.mp4"></video>'
+        with self.assertRaises(AppError) as cm:
+            make_router(yt).analyze(self.server.url("/page.html"))
+        self.assertEqual(cm.exception.code, ErrorCode.SOURCE_BLOCKED)
+        self.assertEqual(yt.generic_calls, 0)
+        self.assertEqual([p for p, _ in self.server.requests if p == "/video.mp4"], [])
+
     def test_page_with_nothing_is_unsupported_with_diagnostics(self):
         self.server.httpd.page = "<title>x</title><p>nothing</p>"
         with self.assertRaises(AppError) as cm:
