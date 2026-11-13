@@ -2,4 +2,6 @@ fastapi>=0.115,<1
 uvicorn[standard]>=0.30,<1
 requests>=2.31,<3
 # Extractors break often; the Docker build always installs the newest release. Rebuild to update.
-yt-dlp>=2025.1.1
+# [default] pulls in pycryptodomex, so native HLS AES-128 decryption never falls back to an external ffmpeg.
+# Pin an exact tested version here (yt-dlp==YYYY.MM.DD) once chosen; CI rebuilds weekly to catch extractor breakage.
+yt-dlp[default]>=2025.1.1

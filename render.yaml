@@ -13,3 +13,7 @@ services:
         value: "1"
       - key: MAX_STORAGE_MB
         value: "512"
+      - key: ALLOWED_ORIGINS
+        value: "https://mujib-syarif.github.io"
+      - key: TRUSTED_PROXY_HOPS
+        value: "1"

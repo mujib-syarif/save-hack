@@ -231,3 +231,52 @@ class StreamEngineTests(NetCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AuditRegressionTests(NetCase):
+    def test_media_regex_is_not_quadratic(self):
+        import time
+        from savehack.engines.html_parser import _extract_media_urls
+        start = time.monotonic()
+        list(_extract_media_urls("http://" * 15_000))
+        list(_extract_media_urls("https://a.b/" + "x" * 150_000))
+        self.assertLess(time.monotonic() - start, 2.0)
+
+    def test_hostile_page_does_not_stall_parser(self):
+        import time
+        start = time.monotonic()
+        page = parse_html("<html><script>" + "http://" * 40_000 + "</script>" + "http://" * 40_000 + "</html>", "https://demo.example.com/")
+        self.assertLess(time.monotonic() - start, 3.0)
+        self.assertEqual(page.candidates, [])
+
+    def test_normal_urls_still_found_after_bounds(self):
+        page = parse_html('<script>var a="https:\\/\\/cdn.example.com\\/v\\/clip.mp4?t=1&b=2";</script>', "https://demo.example.com/")
+        self.assertIn("https://cdn.example.com/v/clip.mp4?t=1&b=2", {c.url for c in page.candidates})
+
+    def test_drm_in_variant_playlist_is_refused(self):
+        with self.assertRaises(AppError) as cm:
+            StreamEngine().analyze(self.server.url("/drm-master.m3u8"))
+        self.assertEqual(cm.exception.code, ErrorCode.SOURCE_BLOCKED)
+
+    def test_live_variant_playlist_is_refused(self):
+        with self.assertRaises(AppError) as cm:
+            StreamEngine().analyze(self.server.url("/live-master.m3u8"))
+        self.assertEqual(cm.exception.code, ErrorCode.UNSUPPORTED_SOURCE)
+
+    def test_dash_protection_on_period_and_mpd_level_is_refused(self):
+        from tests import helpers
+        cp = '<ContentProtection schemeIdUri="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed"/>'
+        self.assertTrue(parse_dash(helpers.DASH_MPD.replace("<Period", f"<Period>{cp}<Period", 1).replace("<Period><Period", "<Period", 1) if False else helpers.DASH_MPD.replace("<Period>", f"<Period>{cp}", 1))["drm"])
+        self.assertTrue(parse_dash(helpers.DASH_MPD.replace("<Period>", f"{cp}<Period>", 1))["drm"])
+
+    def test_slow_trickle_hits_the_read_deadline(self):
+        import time
+        from savehack.config import settings
+        from savehack.net import fetch_text
+        from unittest.mock import patch
+        start = time.monotonic()
+        with patch.object(settings, "analyze_timeout", 1):
+            with self.assertRaises(AppError) as cm:
+                fetch_text(self.server.url("/trickle.bin"), 1_000_000)
+        self.assertEqual(cm.exception.code, ErrorCode.EXTRACTION_TIMEOUT)
+        self.assertLess(time.monotonic() - start, 5)

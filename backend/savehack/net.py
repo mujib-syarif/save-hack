@@ -7,6 +7,8 @@
   metadata endpoint is refused.
 """
 import logging
+import threading
+import time
 from urllib.parse import urljoin
 
 import requests
@@ -93,16 +95,49 @@ def open_stream(url: str, headers: dict = None, method: str = "GET", timeout: fl
     raise AppError(ErrorCode.NETWORK_ERROR, "Terlalu banyak pengalihan (redirect) dari sumber.", detail="redirect limit")
 
 
-def read_limited(resp, limit: int) -> bytes:
-    """Read at most `limit` bytes of a streamed response (never loads huge bodies)."""
+def _iter_available(resp):
+    """Yield body bytes as they arrive (read1) so a trickling server cannot hold a 64 KB chunk read open."""
+    raw = getattr(resp, "raw", None)
+    if raw is not None and hasattr(raw, "read1"):
+        while True:
+            chunk = raw.read1(64 * 1024, decode_content=True)
+            if not chunk:
+                return
+            yield chunk
+    else:
+        yield from resp.iter_content(chunk_size=64 * 1024)
+
+
+def read_limited(resp, limit: int, deadline: float = None) -> bytes:
+    """Read at most `limit` bytes of a streamed response (never loads huge bodies).
+
+    The per-read socket timeout does not bound a server that trickles one byte every few seconds (a chunk read
+    blocks until it is full), so the whole read also gets a wall-clock deadline (default: the analysis timeout).
+    A watchdog closes the connection at the deadline, which unblocks the pending read.
+    """
+    deadline = deadline if deadline is not None else time.monotonic() + settings.analyze_timeout
+    watchdog = threading.Timer(max(0.0, deadline - time.monotonic()), resp.close)
+    watchdog.daemon = True
+    watchdog.start()
     chunks, size = [], 0
-    for chunk in resp.iter_content(chunk_size=64 * 1024):
-        if not chunk:
-            continue
-        size += len(chunk)
-        chunks.append(chunk)
-        if size >= limit:
-            break
+    try:
+        for chunk in _iter_available(resp):
+            if time.monotonic() > deadline:
+                raise AppError(ErrorCode.EXTRACTION_TIMEOUT, detail="response read exceeded its deadline")
+            if not chunk:
+                continue
+            size += len(chunk)
+            chunks.append(chunk)
+            if size >= limit:
+                break
+    except AppError:
+        raise
+    except Exception as exc:  # the watchdog closing the socket surfaces as assorted I/O errors
+        if time.monotonic() >= deadline:
+            raise AppError(ErrorCode.EXTRACTION_TIMEOUT, detail=f"response read exceeded its deadline ({exc.__class__.__name__})")
+        raise
+    finally:
+        watchdog.cancel()
     return b"".join(chunks)[:limit]
 
 

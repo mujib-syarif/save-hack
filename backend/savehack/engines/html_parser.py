@@ -29,6 +29,8 @@ MEDIA_URL_START_RE = re.compile(r"https?:\\?/\\?/", re.I)
 MEDIA_URL_SUFFIX_RE = re.compile(r"\.(?:mp4|webm|m4v|mov|mp3|m4a|m3u8|mpd)(?:\?.*)?$", re.I)
 MAX_MEDIA_URL_LENGTH = 2048
 MAX_MEDIA_SCAN_CHARS = 400_000
+MAX_MEDIA_SCAN_WORK = 1_000_000  # total characters walked per call: nested "http://" starts must not multiply the cost
+MAX_MEDIA_HITS = 200
 ICON_HINTS = ("sprite", "favicon", "icon", "logo", "pixel", "tracking", "spacer", "1x1", "blank", "avatar", "emoji")
 MAX_CANDIDATES = 30
 MAX_PROBES = 10
@@ -37,7 +39,10 @@ MAX_PROBES = 10
 def _extract_media_urls(text: str):
     """Extract bounded media URLs without backtracking over untrusted page text."""
     text = text[:MAX_MEDIA_SCAN_CHARS]
+    work, hits = MAX_MEDIA_SCAN_WORK, 0
     for match in MEDIA_URL_START_RE.finditer(text):
+        if work <= 0 or hits >= MAX_MEDIA_HITS:
+            return
         start = match.start()
         end = match.end()
         limit = min(len(text), start + MAX_MEDIA_URL_LENGTH)
@@ -49,11 +54,13 @@ def _extract_media_urls(text: str):
             if ord(char) <= 32 or ord(char) in (34, 39, 60, 62, 92, 41):
                 break
             end += 1
+        work -= end - start
         raw = text[start:end]
         if end == limit and end < len(text) and ord(text[end]) > 32 and ord(text[end]) not in (34, 39, 60, 62, 92, 41):
             continue
         normalized = raw.replace("\\/", "/")
         if MEDIA_URL_SUFFIX_RE.search(normalized):
+            hits += 1
             yield normalized
 
 class NotHtml(Exception):

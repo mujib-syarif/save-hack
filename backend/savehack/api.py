@@ -2,6 +2,7 @@
 import logging
 import mimetypes
 import shutil
+import threading
 import time
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
@@ -36,6 +37,10 @@ UNSAFE_TYPES = {"text/html", "application/xhtml+xml", "image/svg+xml", "text/jav
 @asynccontextmanager
 async def lifespan(_app):
     MANAGER.start_background()
+    if "*" in settings.allowed_origins:
+        logger.warning("ALLOWED_ORIGINS is not set: CORS accepts any origin. Set it to the frontend origin in production.")
+    if settings.trusted_proxy_hops == 0:
+        logger.info("TRUSTED_PROXY_HOPS=0: client IPs come from the socket, X-Forwarded-For is ignored.")
     logger.info("Save Hack %s started (yt-dlp %s, ffmpeg=%s)", __version__, ytdlp_engine.version(), bool(shutil.which("ffmpeg")))
     try:
         yield
@@ -43,7 +48,7 @@ async def lifespan(_app):
         MANAGER.shutdown()
 
 
-app = FastAPI(title="Save Hack Universal Downloader API", version=__version__, lifespan=lifespan, docs_url="/docs", redoc_url=None)
+app = FastAPI(title="Save Hack Universal Downloader API", version=__version__, lifespan=lifespan, docs_url="/docs" if settings.enable_docs else None, redoc_url=None, openapi_url="/openapi.json" if settings.enable_docs else None)
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_credentials=False,
                    allow_methods=["GET", "POST", "DELETE"], allow_headers=["Content-Type"], expose_headers=["Content-Disposition", "Content-Length"])
 
@@ -198,8 +203,21 @@ def legacy_analyze(req: AnalyzeRequest, request: Request):
             "extractor": info.site or info.engine, "formats": ["mp4", "mp3"]}
 
 
+_LEGACY_WAITERS = threading.BoundedSemaphore(settings.legacy_download_waiters)
+
+
 @app.post("/download", include_in_schema=False)
 def legacy_download(req: LegacyDownloadRequest, request: Request):
+    # This endpoint blocks a worker thread until the job ends; cap how many threads it may hold.
+    if not _LEGACY_WAITERS.acquire(blocking=False):
+        raise AppError(ErrorCode.RATE_LIMITED, "Server sedang sibuk. Gunakan antarmuka web terbaru atau coba lagi nanti.", detail="legacy download waiters exhausted")
+    try:
+        return _legacy_download(req, request)
+    finally:
+        _LEGACY_WAITERS.release()
+
+
+def _legacy_download(req: LegacyDownloadRequest, request: Request):
     ip = limit(DOWNLOAD_LIMIT, request)
     require_rights(req.rights_confirmed)
     info = ROUTER.analyze(req.url)

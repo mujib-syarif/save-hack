@@ -49,6 +49,8 @@ class Settings:
     rate_download_per_min: int = field(default_factory=lambda: _int("RATE_DOWNLOAD_PER_MIN", 8, 1))
     # Number of trusted reverse proxies in front of the app (Railway edge = 1).
     trusted_proxy_hops: int = field(default_factory=lambda: _int("TRUSTED_PROXY_HOPS", 1, 0))
+    enable_docs: bool = field(default_factory=lambda: os.getenv("ENABLE_DOCS", "").lower() in ("1", "true", "yes"))
+    legacy_download_waiters: int = field(default_factory=lambda: _int("LEGACY_DOWNLOAD_WAITERS", 4, 1))
     log_level: str = field(default_factory=lambda: os.getenv("LOG_LEVEL", "INFO"))
     max_playlist_entries: int = 50
     max_html_bytes: int = 2 * 1024 * 1024
