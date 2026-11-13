@@ -181,13 +181,17 @@ def build_media_info(url: str, info: dict, engine: str = "ytdlp") -> MediaInfo:
                      payload={"downloader": "ytdlp", "webpage_url": info.get("webpage_url") or url})
 
 
-def extract_info(url: str, playlist_ok: bool = True) -> dict:
+def extract_info(url: str, playlist_ok: bool = True, force_generic: bool = False) -> dict:
     yt_dlp = _import_yt_dlp()
     opts = {
         "quiet": True, "no_warnings": True, "noprogress": True, "ignoreconfig": True, "skip_download": True,
         "noplaylist": True, "socket_timeout": settings.http_timeout, "retries": 1, "extractor_retries": 1,
         "geo_bypass": False, "playlistend": settings.max_playlist_entries, "extract_flat": "in_playlist",
     }
+    if force_generic:
+        # Last-resort public-page parser only. This does not supply cookies,
+        # credentials, browser impersonation, or challenge-solving behavior.
+        opts["force_generic_extractor"] = True
     with egress_guard(), yt_dlp.YoutubeDL(opts) as ydl:
         return ydl.extract_info(url, download=False)
 
@@ -210,6 +214,20 @@ class YtDlpEngine(Engine):
         result = build_media_info(url, info)
         result.meta["extractor_key"] = key
         return result
+
+    def analyze_generic(self, url: str) -> Optional[MediaInfo]:
+        """Try yt-dlp's generic public-page extractor after normal parsers fail."""
+        try:
+            info = extract_info(url, force_generic=True)
+        except Exception as exc:
+            raise classify_exception(exc, ErrorCode.MEDIA_NOT_FOUND)
+        if not info:
+            return None
+        if info.get("is_live"):
+            raise AppError(ErrorCode.UNSUPPORTED_SOURCE, "Siaran langsung (live) belum bisa diunduh.", detail="live stream")
+        result = build_media_info(url, info)
+        result.meta["extractor_key"] = info.get("extractor_key") or "Generic"
+        return result if result.formats else None
 
     def download(self, info: MediaInfo, fmt: FormatOption, ctx: JobContext) -> Path:
         url = info.payload.get("webpage_url") or info.url
